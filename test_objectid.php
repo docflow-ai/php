@@ -4,8 +4,8 @@ require_once './docflow/APIClient.php';
 
 $hash = "62eba7ba5ddf632cd13273a3";
 $serialized = 'a:1:{s:3:"oid";s:24:"62eba7ba5ddf632cd13273a3";}';
-$mongoId = new MongoDB\BSON\ObjectId($hash);
 $docflowId = new Docflow\ObjectId($hash);
+$mongoId = new MongoDB\BSON\ObjectId($hash);
 
 
 if ((string)$mongoId !== (string)$docflowId) {

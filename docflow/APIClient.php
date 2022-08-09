@@ -2,15 +2,16 @@
 
 namespace DocFlow;
 
-//implements \Serializable, \JsonSerializable
 
 class ObjectId implements \Serializable, \JsonSerializable {
 
     public string $oid;
 
     public function __construct(string $id) {
-        //preg_match('/^[0-9a-f]&/', $id, $matches, PREG_OFFSET_CAPTURE);
-        //print_r($matches);
+        preg_match('/^[a-f0-9]{24}$/i', $id, $matches);
+        if (empty($matches)) {
+            throw new \InvalidArgumentException("Error parsing ObjectId string: {$id}");
+        }
 
         $this->oid = $id;
     }
