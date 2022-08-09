@@ -1,7 +1,40 @@
 <?php
 
 namespace DocFlow;
-use MongoDB\BSON\ObjectId;
+
+//implements \Serializable, \JsonSerializable
+
+class ObjectId implements \Serializable, \JsonSerializable {
+
+    public string $oid;
+
+    public function __construct(string $id) {
+        //preg_match('/^[0-9a-f]&/', $id, $matches, PREG_OFFSET_CAPTURE);
+        //print_r($matches);
+
+        $this->oid = $id;
+    }
+
+    public function __toString() : string {
+        return $this->oid;
+    }
+
+    public function getTimestamp(): int {
+        return intval(substr($this->oid, 0, 8), 16);
+    }
+
+    public function jsonSerialize(): array {
+        return ['$oid' => $this->oid];
+    }
+
+    public function serialize(): string {
+        return serialize(['oid' => $this->oid]);
+    }
+    public function unserialize($serialized): void {
+    }
+
+}
+
 
 class APIClient {
 

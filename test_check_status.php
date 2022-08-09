@@ -1,7 +1,5 @@
 <?php
 
-use MongoDB\BSON\ObjectId;
-
 require_once './docflow/APIClient.php';
 require_once './vendor/autoload.php';
 
@@ -21,7 +19,7 @@ if ($client->login("tester@docflow.ai", "tester2022")) {
     ];
 
     foreach ($ids as $id) {
-        if ($info = $client->getDocumentInfo(new ObjectId($id))) {
+        if ($info = $client->getDocumentInfo(new DocFlow\ObjectId($id))) {
             //echo "{$owner->name} #{$owner->id}\n";
             print_r($info);
         } else {
