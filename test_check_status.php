@@ -16,11 +16,11 @@ if ($client->login("tester@docflow.ai", "tester2022")) {
         //"62eba7ba5ddf632cd13273a1",
         "62eba7ba5ddf632cd13273a3",
         //"62eba7bb5ddf632cd13273a5",
+        "62f369e76bad1856b5216a0b"
     ];
 
     foreach ($ids as $id) {
-        if ($info = $client->getDocumentInfo(new DocFlow\ObjectId($id))) {
-            //echo "{$owner->name} #{$owner->id}\n";
+        if (($info = $client->getDocumentInfo(new DocFlow\ObjectId($id)))) {
             print_r($info);
         } else {
             echo "Wrong doc id or you dont have rights\n";

@@ -32,14 +32,16 @@ class ObjectId implements \Serializable, \JsonSerializable {
         return serialize(['oid' => $this->oid]);
     }
     public function unserialize($serialized): void {
+        $data = unserialize($serialized);
+        $this->oid = $data['oid'];
     }
-
 }
 
 
 class APIClient {
 
     private const API_URL = 'https://api.docflow.ai';
+    private const DATE_FORMAT = 'Y-m-d\TH:i:s.000\Z';
     private bool $isLoggedIn = false;
     private \stdClass $userData;
     private RESTClient $session;
@@ -194,31 +196,55 @@ class APIClient {
 
             $doc = $this->session->get(self::API_URL . '/document/' . (string)$id);
 
-            return (object)[
-                'id' => new ObjectId($doc->_id),
-                'userId' => new ObjectId($doc->userId),
-                'step' => $doc->step,
-                'doctype' => $doc->doctype,
-                'name' => $doc->name,
-                'predicted' => $doc->predicted,
-                'updatedAt' => $doc->updatedAt,
-                'createdAt' => $doc->createdAt,
-                'pages' => array_map(function($page) {
-                    $page->fileId = new ObjectId($page->_id);
-                    unset($page->_id, $page->vision, $page->type);
-                    return $page;
-                }, $doc->pages),
-                'fields' => array_map(function($obj) {
-                    unset($obj->bboxes);
-                    if (!empty($obj->bounds) && !empty($obj->bounds->id)) {
-                        $obj->bounds->id = new ObjectId($obj->bounds->id);
-                    }
-                    return $obj;
-                }, !empty($doc->fields) ? $doc->fields : [])
-            ];
+            return $this->prepareDocumentInfo($doc);
         } else {
             throw new APIClientException("No response");
         }
+    }
+
+    public function getDocumentList(\DateTime $from, \DateTime $to, string $doctype = null) : array {
+        $response = $this->session->post(
+            self::API_URL . '/documents/ids',
+            [
+                'project' => $doctype,
+                'sortField' => '_id',
+                'sortOrder' => -1,
+                'filters' => ['createdAtFrom' => $from->format(self::DATE_FORMAT), 'createdAtTo' => $to->format(self::DATE_FORMAT)]
+            ]
+        );
+
+        if (isset($response->data) && $response->total > 0) {
+            return array_map(function ($id) {
+                return new ObjectId($id);
+            }, $response->data);
+        }
+
+        return [];
+    }
+
+    private function prepareDocumentInfo(\stdClass $doc) : \stdClass {
+        return (object)[
+            'id' => new ObjectId($doc->_id),
+            'userId' => $doc->userId ? new ObjectId($doc->userId) : null,
+            'step' => $doc->step,
+            'doctype' => $doc->doctype,
+            'name' => $doc->name,
+            'predicted' => $doc->predicted,
+            'updatedAt' => $doc->updatedAt,
+            'createdAt' => $doc->createdAt,
+            'pages' => array_map(function($page) {
+                $page->fileId = $page->_id ? new ObjectId($page->_id) : null;
+                unset($page->_id, $page->vision, $page->type);
+                return $page;
+            }, $doc->pages),
+            'fields' => array_map(function($obj) {
+                unset($obj->bboxes);
+                if (!empty($obj->bounds) && !empty($obj->bounds->id)) {
+                    $obj->bounds->id = $obj->bounds->id ? new ObjectId($obj->bounds->id) : null;
+                }
+                return $obj;
+            }, !empty($doc->fields) ? $doc->fields : [])
+        ];
     }
 
     private function prepareDocumentPages(string $filepath, string $name) : array {
