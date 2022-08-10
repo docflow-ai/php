@@ -42,6 +42,7 @@ class APIClient {
 
     private const API_URL = 'https://api.docflow.ai';
     private const DATE_FORMAT = 'Y-m-d\TH:i:s.000\Z';
+    private const STEPS = [-1,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
     private bool $isLoggedIn = false;
     private \stdClass $userData;
     private RESTClient $session;
@@ -202,14 +203,27 @@ class APIClient {
         }
     }
 
-    public function getDocumentList(\DateTime $from, \DateTime $to, string $doctype = null) : array {
+    public function getDocumentList(\DateTime $from, \DateTime $to, string $doctype = null, array $steps = self::STEPS) : array {
+        $workflow = [];
+        if (!empty($doctype)) {
+            $workflow[$doctype] = $steps;
+        } else {
+            foreach ($this->getDocumentTypes() as $type) {
+                $workflow[$type] = $steps;
+            }
+        }
+
         $response = $this->session->post(
             self::API_URL . '/documents/ids',
             [
                 'project' => $doctype,
                 'sortField' => '_id',
                 'sortOrder' => -1,
-                'filters' => ['createdAtFrom' => $from->format(self::DATE_FORMAT), 'createdAtTo' => $to->format(self::DATE_FORMAT)]
+                'filters' => [
+                    'createdAtFrom' => $from->format(self::DATE_FORMAT),
+                    'createdAtTo' => $to->format(self::DATE_FORMAT),
+                    'workflow' => $workflow
+                ]
             ]
         );
 
