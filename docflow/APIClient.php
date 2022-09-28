@@ -47,6 +47,12 @@ class APIClient {
     private \stdClass $userData;
     private RESTClient $session;
 
+    public const EXPORT_MRP = 'mrp';
+    public const EXPORT_MKSOFT = 'mksoft';
+    public const EXPORT_OMEGA = 'omega';
+    public const EXPORT_POHODA = 'pohoda';
+    public const EXPORT_MONES3 = 'moneys3';
+
     public function __construct() {
         $this->session = new RESTClient;
     }
@@ -317,6 +323,28 @@ class APIClient {
         }
         return $pages;
     }
+
+    public function export($type, $ids, $multi = false) : array {
+        $this->checkLoggedIn();
+
+        $ids = array_map(function($o) {
+            if ($o instanceof ObjectId) {
+                return (string)$o;
+            }
+            return $o;
+        }, $ids);
+
+        $response = $this->session->post(self::API_URL . '/documents/' . strtolower($type), [
+            'ids' => $ids,
+            'multi' => (bool)$multi
+        ]);
+
+        if ($response) {
+            return $response;
+        } else {
+            throw new APIClientException("No response");
+        }
+    }
 }
 
 class RESTClient {
@@ -355,22 +383,48 @@ class RESTClient {
         $response = curl_exec($curl);
         $header_size = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
         $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $header = substr($response, 0, $header_size);
+        $body = substr($response, $header_size);
         curl_close($curl);
 
         if ($http_code == 200) {
-            $header = substr($response, 0, $header_size);
-            $body = substr($response, $header_size);
             $this->cookie = self::parseCookies($header);
+            $this->contentType = self::parseContentType($header);
 
             try {
+                if ($this->contentType == 'application/octet-stream') {
+                    $headers = self::parseHeaders($header);
+                    $filemame = trim(str_replace('attachment; filename=', null, $headers['Content-Disposition']), '"');
+                    return [$filemame => $body];
+                }
                 $body = json_decode($body);
                 return $body;
             } catch (\Exception $e) {
                 throw new RESTClientException("Wrong response");
             }
         } else {
+            try {
+                $obj = json_decode($body);
+                if ($obj && isset($obj->message)) {
+                    throw new RESTClientException("E{$http_code}: {$obj->message}");    
+                }
+            } catch (\JsonException $e) {}
             throw new RESTClientException("API Error with code {$http_code}.");
         }
+    }
+
+    private static function parseHeaders(string $header) : array {
+        $headers = [];
+        foreach (explode("\n", $header) as $line) {
+            if (strlen($line) < 5) {
+                continue;
+            }
+            $values = explode(":", $line);
+            if (count($values) > 1) {
+                $headers[$values[0]] = trim($values[1]);    
+            }
+        }
+        return $headers;
     }
 
     private static function parseCookies($header) : array {
@@ -381,6 +435,11 @@ class RESTClient {
             $cookies = array_merge($cookies, $cookie);
         }
         return $cookies;
+    }
+
+    private static function parseContentType($headers) : string {
+        $headers = self::parseHeaders($headers);
+        return strtolower($headers['Content-Type']);
     }
 }
 
